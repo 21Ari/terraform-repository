@@ -1,0 +1,57 @@
+name: Terraform with State Restore/Backup
+on:
+  workflow_dispatch: # run manually
+  push:
+    branches:
+      - main
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository (with push credentials)
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+      # 🔄 Restore the latest backup tfstate
+      - name: Restore latest terraform.tfstate
+        run: |
+          if [ -d backup ]; then
+            LATEST=$(ls -t backup/terraform-*.tfstate 2>/dev/null | head -n 1 || true)
+            if [ -n "$LATEST" ]; then
+              cp "$LATEST" terraform.tfstate
+              echo "Restored state from $LATEST"
+            else
+              echo "No backup found, starting fresh"
+            fi
+          else
+            echo "No backup folder, starting fresh"
+          fi
+      # ✅ Setup Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.8.5
+      # Run terraform commands
+      - name: Terraform Init
+        run: terraform init
+      - name: Terraform Plan
+        run: terraform plan
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
+      # 💾 Backup new state after apply
+      - name: Backup terraform.tfstate with timestamp
+        run: |
+          mkdir -p backup
+          TIMESTAMP=$(date -u +"%Y%m%dT%H%M%SZ")
+          cp terraform.tfstate backup/terraform-${TIMESTAMP}.tfstate
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f terraform.tfstate backup/terraform-${TIMESTAMP}.tfstate
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update & backup tfstate: terraform-${TIMESTAMP}.tfstate [skip ci]"
+            git push origin main
+          fi
+
