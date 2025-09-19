@@ -14,14 +14,13 @@ jobs:
         with:
           persist-credentials: true
           fetch-depth: 0
-      # 🔑 Configure AWS credentials (from GitHub Secrets)
+      # 🔑 Configure AWS credentials (official way)
       - name: Configure AWS Credentials
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
-        run: |
-          echo "AWS credentials configured"
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
       # 🔄 Restore the latest backup tfstate
       - name: Restore latest terraform.tfstate
         run: |
